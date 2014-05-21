@@ -24,8 +24,11 @@ References:
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
+var restler = require('restler');
+
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
+var URL_DEFUALT = "http://www.google.com";
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -37,7 +40,7 @@ var assertFileExists = function(infile) {
 };
 
 var cheerioHtmlFile = function(htmlfile) {
-    return cheerio.load(fs.readFileSync(htmlfile));
+    return cheerio.load(fs.readFileSync(htmlfile).toString());
 };
 
 var loadChecks = function(checksfile) {
@@ -58,17 +61,62 @@ var checkHtmlFile = function(htmlfile, checksfile) {
 var clone = function(fn) {
     // Workaround for commander.js issue.
     // http://stackoverflow.com/a/6772648
+    // console.log("clone: " + fn);
     return fn.bind({});
-};
+}
+
+var print_url = function(url){
+  console.log(url.toString());
+}
+
+// downloads main page from URL, saves it as tmp.html
+var getHTMLfromURL = function(url){
+  restler.get(url).on('complete', function(response){
+    // console.log(response);
+    fs.writeFileSync("tmp.html", response);
+  });
+}
 
 if(require.main == module) {
-    program
-        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-        .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
-        .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
-} else {
+  
+  program  
+    .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
+    .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+    .option('-u, --url <url>', 'Input URL')
+    .parse(process.argv);
+
+    // console.log("File: " + program.file);
+    // console.log("Checks: " + program.checks);
+    // console.log("URL: " + program.url);
+
+
+    if (!program.url){
+
+      console.log("Just checking HTML file and JSON file");
+      var checkJson = checkHtmlFile(program.file, program.checks);
+      var outJson = JSON.stringify(checkJson, null, 4);
+      console.log(outJson);
+    }
+
+    else if (program.url){
+      console.log("You gave me the URL: " + program.url);
+      console.log("I will ignore the file");
+      // console.log(program.url);
+
+      getHTMLfromURL(program.url);
+      var checkJson = checkHtmlFile("tmp.html", program.checks);
+      var outJson = JSON.stringify(checkJson, null, 4);
+      console.log(outJson);
+
+
+    }
+
+    // else{
+    //   console.log("AAAAAA");
+    // }
+  
+} 
+else {
+    console.log("a");
     exports.checkHtmlFile = checkHtmlFile;
 }
